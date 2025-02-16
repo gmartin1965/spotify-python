@@ -1,0 +1,22 @@
+# Configuration files
+config.json
+track_config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Spotify cache
+.cache
