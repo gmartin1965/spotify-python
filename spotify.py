@@ -148,20 +148,38 @@ class SpotifyPlaylistManager:
                 break
         return False
 
-    def add_tracks_to_playlist(self, playlist_id: str, track_ids: List[str]) -> None:
-        """Add tracks to playlist in batches with rate limit handling."""
-        total_batches = (len(track_ids) + self.BATCH_SIZE - 1) // self.BATCH_SIZE
-        print(f"Adding tracks in {total_batches} batches...")
+    def get_existing_tracks(self, playlist_id: str) -> List[str]:
+        """Retrieve all track IDs from the given playlist."""
+        existing_tracks = []
+        offset = 0
+        while True:
+            response = self.sp.playlist_tracks(playlist_id, offset=offset)
+            existing_tracks.extend([item['track']['id'] for item in response['items'] if item['track']])
+            if len(response['items']) < 100:
+                break
+            offset += 100
+        return existing_tracks
 
-        for i in range(0, len(track_ids), self.BATCH_SIZE):
-            batch = track_ids[i:i + self.BATCH_SIZE]
+    def add_tracks_to_playlist(self, playlist_id: str, track_ids: List[str]) -> None:
+        """Add tracks to playlist in batches, ensuring no duplicates."""
+        existing_tracks = set(self.get_existing_tracks(playlist_id))  # Fetch current playlist tracks
+        new_tracks = [track for track in track_ids if track not in existing_tracks]  # Filter out existing tracks
+
+        if not new_tracks:
+            print("✅ No new tracks to add. Playlist is already up to date.")
+            return
+
+        total_batches = (len(new_tracks) + self.BATCH_SIZE - 1) // self.BATCH_SIZE
+        print(f"Adding {len(new_tracks)} new tracks in {total_batches} batches...")
+
+        for i in range(0, len(new_tracks), self.BATCH_SIZE):
+            batch = new_tracks[i:i + self.BATCH_SIZE]
             batch_number = (i // self.BATCH_SIZE) + 1
 
             success = self._add_batch_with_retry(playlist_id, batch, batch_number, total_batches)
 
             if success and batch_number < total_batches:
                 time.sleep(self.RATE_LIMIT_DELAY)
-
 
 
 def load_config(filename: str) -> dict:
